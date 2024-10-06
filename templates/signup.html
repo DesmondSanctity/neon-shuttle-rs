@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="text-3xl font-bold mb-4">Signup</h1>
+<form action="/signup" method="post" class="max-w-md">
+    <div class="mb-4">
+        <label for="username" class="block mb-2">Username:</label>
+        <input type="text" id="username" name="username" required class="w-full px-3 py-2 border rounded">
+    </div>
+    <div class="mb-4">
+        <label for="email" class="block mb-2">Email:</label>
+        <input type="email" id="email" name="email" required class="w-full px-3 py-2 border rounded">
+    </div>
+    <div class="mb-4">
+        <label for="password" class="block mb-2">Password:</label>
+        <input type="password" id="password" name="password" required class="w-full px-3 py-2 border rounded">
+    </div>
+    <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Signup</button>
+</form>
+{% endblock %}
