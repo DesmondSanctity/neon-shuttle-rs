@@ -7,6 +7,7 @@ pub struct User {
     pub username: String,
     pub email: String,
     #[serde(skip_serializing)]
+    #[allow(dead_code)]
     pub password: String,
     pub created_at: DateTime<Utc>,
 }

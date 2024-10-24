@@ -1,5 +1,7 @@
-use chrono::{DateTime, Utc};
+use actix_web::web;
+use serde_json::json;
 use sqlx::PgPool;
+use tokio_cron_scheduler::{Job, JobScheduler};
 
 use crate::models::{CronJob, NewCronJob};
 
@@ -7,8 +9,8 @@ pub async fn create_cron_job(
     pool: &PgPool,
     user_id: i32,
     new_cron_job: NewCronJob,
-) -> Result<CronJob, sqlx::Error> {
-    let cron_job = sqlx::query!(
+) -> Result<serde_json::Value, serde_json::Value> {
+    match sqlx::query!(
         r#"
         INSERT INTO cron_jobs (user_id, message, schedule)
         VALUES ($1, $2, $3)
@@ -19,19 +21,28 @@ pub async fn create_cron_job(
         new_cron_job.schedule
     )
     .fetch_one(pool)
-    .await?;
-
-    Ok(CronJob {
-        id: cron_job.id,
-        user_id: cron_job.user_id.expect("User ID should be present"),
-        message: cron_job.message,
-        schedule: cron_job.schedule,
-        last_run: cron_job.last_run,
-        created_at: cron_job.created_at.expect("Created at should be present"),
-    })
+    .await
+    {
+        Ok(job) => Ok(json!({
+            "message": "Cron job created successfully",
+            "job": {
+                "id": job.id,
+                "user_id": job.user_id,
+                "message": job.message,
+                "schedule": job.schedule,
+                "last_run": job.last_run,
+                "created_at": job.created_at
+            }
+        })),
+        Err(e) => Err(json!({ "error": format!("Failed to create cron job: {}", e) })),
+    }
 }
-pub async fn get_user_cron_jobs(pool: &PgPool, user_id: i32) -> Result<Vec<CronJob>, sqlx::Error> {
-    let cron_jobs = sqlx::query!(
+
+pub async fn get_user_cron_jobs(
+    pool: &PgPool,
+    user_id: i32,
+) -> Result<serde_json::Value, serde_json::Value> {
+    match sqlx::query!(
         r#"
         SELECT id, user_id, message, schedule, last_run, created_at
         FROM cron_jobs
@@ -41,51 +52,33 @@ pub async fn get_user_cron_jobs(pool: &PgPool, user_id: i32) -> Result<Vec<CronJ
         user_id
     )
     .fetch_all(pool)
-    .await?;
-
-    Ok(cron_jobs
-        .into_iter()
-        .map(|job| CronJob {
-            id: job.id,
-            user_id: job.user_id.expect("User ID should be present"),
-            message: job.message,
-            schedule: job.schedule,
-            last_run: job.last_run,
-            created_at: job.created_at.expect("Created at should be present"),
-        })
-        .collect())
+    .await
+    {
+        Ok(jobs) => Ok(json!({
+            "cron_jobs": jobs.into_iter().map(|job| json!({
+                "id": job.id,
+                "user_id": job.user_id,
+                "message": job.message,
+                "schedule": job.schedule,
+                "last_run": job.last_run,
+                "created_at": job.created_at
+            })).collect::<Vec<_>>()
+        })),
+        Err(e) => Err(json!({ "error": format!("Failed to fetch cron jobs: {}", e) })),
+    }
 }
 
-pub async fn run_cron_jobs(pool: &PgPool) -> Result<(), sqlx::Error> {
-    let now: DateTime<Utc> = Utc::now();
-
-    let cron_jobs = sqlx::query!(
-        r#"
-        SELECT id, user_id, message, schedule, last_run, created_at
-        FROM cron_jobs
-        WHERE last_run IS NULL OR last_run < $1
-        "#,
-        now
-    )
-    .fetch_all(pool)
-    .await?;
-
-    for job in cron_jobs {
-        println!("Running cron job: {}", job.message);
-
-        sqlx::query!(
-            r#"
-            UPDATE cron_jobs
-            SET last_run = $1
-            WHERE id = $2
-            "#,
-            now,
-            job.id
-        )
-        .execute(pool)
-        .await?;
-    }
-
+pub async fn schedule_job(
+    scheduler: web::Data<JobScheduler>,
+    cron_job: CronJob,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let message = cron_job.message.clone();
+    let job = Job::new_async(cron_job.schedule.as_str(), move |_, _| {
+        let message = message.clone();
+        Box::pin(async move {
+            println!("Executing cron job: {}", message);
+        })
+    })?;
+    scheduler.add(job).await?;
     Ok(())
 }
-

@@ -1,28 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Cron Job Manager{% endblock %}</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-gray-100">
-    <nav class="bg-blue-600 p-4 text-white">
-        <div class="container mx-auto flex justify-between">
-            <a href="/" class="text-2xl font-bold">Cron Job Manager</a>
-            <div>
-                {% if user %}
-                    <a href="/dashboard" class="mr-4">Dashboard</a>
-                    <a href="/logout" class="mr-4">Logout</a>
-                {% else %}
-                    <a href="/login" class="mr-4">Login</a>
-                    <a href="/signup">Signup</a>
-                {% endif %}
-            </div>
-        </div>
-    </nav>
-    <main class="container mx-auto mt-8 p-4">
-        {% block content %}{% endblock %}
-    </main>
-</body>
+ <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Cron Job Manager{% endblock %}</title>
+  <link
+   href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+   rel="stylesheet"
+  />
+ </head>
+ <body class="bg-gray-100">
+  <nav class="bg-blue-600 p-4 text-white">
+   <div class="container mx-auto flex justify-between">
+    <a href="/" class="text-2xl font-bold">Cron Job Manager</a>
+    <div>
+     {% if user %}
+     <a href="/dashboard" class="mr-4">Dashboard</a>
+     <a href="/logout" class="mr-4">Logout</a>
+     {% else %}
+     <a href="/login" class="mr-4">Login</a>
+     <a href="/signup">Signup</a>
+     {% endif %}
+    </div>
+   </div>
+  </nav>
+  <main class="container mx-auto mt-8 p-4">
+   {% block content %}{% endblock %}
+  </main>
+  <script>
+   document.addEventListener('DOMContentLoaded', () => {
+    const forms = document.querySelectorAll('form');
+    forms.forEach((form) => {
+     form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const response = await fetch(form.action, {
+       method: form.method,
+       body: formData,
+       headers: {
+        'Accept': 'application/json',
+       },
+      });
+      if (response.ok) {
+       window.location = response.url;
+      } else {
+       const errorData = await response.json();
+       alert(errorData.error || 'An error occurred');
+      }
+     });
+    });
+   });
+  </script>
+ </body>
 </html>
